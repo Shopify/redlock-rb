@@ -81,14 +81,19 @@ module Redlock
         if connection.respond_to?(:client)
           @redis = connection
         else
-          @redis  = Redis.new(connection)
+          @redis = Redis.new(connection)
         end
 
-        load_scripts
+        @unlock_script_sha = @redis.script(:load, UNLOCK_SCRIPT)
+        @lock_script_sha = @redis.script(:load, LOCK_SCRIPT)
+      rescue Redis::CannotConnectError => e
+        # Instance is invalid and will be false
       end
 
       def lock(resource, val, ttl)
         @redis.evalsha(@lock_script_sha, keys: [resource], argv: [val, ttl])
+      rescue Redis::CannotConnectError => e
+        false
       end
 
       def unlock(resource, val)
@@ -97,12 +102,6 @@ module Redlock
         # Nothing to do, unlocking is just a best-effort attempt.
       end
 
-      private
-
-      def load_scripts
-        @unlock_script_sha = @redis.script(:load, UNLOCK_SCRIPT)
-        @lock_script_sha = @redis.script(:load, LOCK_SCRIPT)
-      end
     end
 
     def try_lock_instances(resource, ttl, extend)

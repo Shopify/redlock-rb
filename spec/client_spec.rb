@@ -21,6 +21,13 @@ RSpec.describe Redlock::Client do
   end
 
   describe 'lock' do
+    context 'when redis is not available' do
+      it 'returns false when trying to lock' do
+        lock_manager = Redlock::Client.new([Redis.new(url: 'redis://127.0.0.1:99989')])
+        expect(lock_manager.lock(resource_key, ttl)).to eql(false)
+      end
+    end
+
     context 'when lock is available' do
       after(:each) { lock_manager.unlock(@lock_info) if @lock_info }
 
