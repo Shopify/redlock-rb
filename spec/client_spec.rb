@@ -63,6 +63,19 @@ RSpec.describe Redlock::Client do
       end
     end
 
+    context 'checking locked' do
+      it 'returns true' do
+        lock_info = lock_manager.lock(resource_key, ttl)
+        expect(lock_manager.locked?(lock_info)).to eql(true)
+      end
+
+      it 'returns false' do
+        lock_info = lock_manager.lock(resource_key, ttl)
+        lock_manager.unlock(lock_info)
+        expect(lock_manager.locked?(lock_info)).to eql(false)
+      end
+    end
+
     context 'when lock is not available' do
       before { @another_lock_info = lock_manager.lock(resource_key, ttl) }
       after { lock_manager.unlock(@another_lock_info) }

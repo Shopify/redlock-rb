@@ -58,6 +58,14 @@ module Redlock
       @servers.each { |s| s.unlock(lock_info[:resource], lock_info[:value]) }
     end
 
+    # Checks if a resource is still locked
+    # Params:
+    # +lock_info+:: the lock that has been acquired when you locked the resource.
+    def locked?(lock_info)
+      locked = @servers.map { |s| s.locked?(lock_info[:resource], lock_info[:value]) }
+      locked.select{|l| l === true }.size >= @quorum
+    end
+
     private
 
     class RedisInstance
@@ -77,6 +85,14 @@ module Redlock
         end
       eos
 
+      LOCK_CHECK_SCRIPT = <<-eos
+        if redis.call("get",KEYS[1]) == ARGV[1] then
+          return 1
+        else
+          return 0
+        end
+      eos
+
       def initialize(connection)
         if connection.respond_to?(:client)
           @redis = connection
@@ -86,6 +102,7 @@ module Redlock
 
         @unlock_script_sha = @redis.script(:load, UNLOCK_SCRIPT)
         @lock_script_sha = @redis.script(:load, LOCK_SCRIPT)
+        @lock_check_script_sha = @redis.script(:load, LOCK_CHECK_SCRIPT)
       rescue Redis::CannotConnectError => e
         # Instance is invalid and will be false
       end
@@ -94,6 +111,10 @@ module Redlock
         @redis.evalsha(@lock_script_sha, keys: [resource], argv: [val, ttl])
       rescue Redis::CannotConnectError => e
         false
+      end
+
+      def locked?(resource, val)
+        @redis.evalsha(@lock_check_script_sha, keys: [resource], argv: [val]) == 1
       end
 
       def unlock(resource, val)
