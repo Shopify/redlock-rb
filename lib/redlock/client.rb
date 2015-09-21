@@ -115,6 +115,8 @@ module Redlock
 
       def locked?(resource, val)
         @redis.evalsha(@lock_check_script_sha, keys: [resource], argv: [val]) == 1
+      rescue Redis::CannotConnectError => e
+        false
       end
 
       def unlock(resource, val)
