@@ -103,19 +103,19 @@ module Redlock
         @unlock_script_sha = @redis.script(:load, UNLOCK_SCRIPT)
         @lock_script_sha = @redis.script(:load, LOCK_SCRIPT)
         @lock_check_script_sha = @redis.script(:load, LOCK_CHECK_SCRIPT)
-      rescue Redis::CannotConnectError => e
+      rescue Redis::BaseConnectionError => e
         # Instance is invalid and will be false
       end
 
       def lock(resource, val, ttl)
         @redis.evalsha(@lock_script_sha, keys: [resource], argv: [val, ttl])
-      rescue Redis::CannotConnectError => e
+      rescue Redis::BaseConnectionError => e
         false
       end
 
       def locked?(resource, val)
         @redis.evalsha(@lock_check_script_sha, keys: [resource], argv: [val]) == 1
-      rescue Redis::CannotConnectError => e
+      rescue Redis::BaseConnectionError => e
         false
       end
 
